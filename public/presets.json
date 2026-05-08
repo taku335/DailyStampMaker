@@ -1,0 +1,26 @@
+[
+  {
+    "id": "sample-fukuhara",
+    "label": "福 / 原",
+    "topText": "福",
+    "bottomText": "原",
+    "color": "#EF454A",
+    "dateFormat": "shortDot"
+  },
+  {
+    "id": "dept-soumu-yamada",
+    "label": "総務 / 山田",
+    "topText": "総務",
+    "bottomText": "山田",
+    "color": "#EF454A",
+    "dateFormat": "slash"
+  },
+  {
+    "id": "dept-sales-sato",
+    "label": "営業部 / 佐藤",
+    "topText": "営業部",
+    "bottomText": "佐藤",
+    "color": "#2563EB",
+    "dateFormat": "dot"
+  }
+]
