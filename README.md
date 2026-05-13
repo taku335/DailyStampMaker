@@ -86,6 +86,36 @@ docker compose run --rm --service-ports app npm run preview -- --host 0.0.0.0
 
 日付は保存しません。お気に入りを選択すると、日付だけ利用当日に更新されます。
 
+保存キーは次の値です。
+
+```text
+daily-stamp-maker:favorites:v1
+```
+
+保存形式は、お気に入り配列をJSON文字列にしたものです。ブラウザの開発者ツールから確認できます。
+
+1. アプリを開きます。
+2. ブラウザの開発者ツールを開きます。
+3. `Application` タブを開きます。
+4. `Local Storage` から対象のoriginを選択します。
+5. `daily-stamp-maker:favorites:v1` の値を確認します。
+
+Consoleから確認する場合は次のコードを実行します。
+
+```js
+localStorage.getItem('daily-stamp-maker:favorites:v1')
+```
+
+`localStorage` の実体はブラウザのプロファイル配下に保存されます。たとえばmacOSのChromeでは、おおむね次の場所にあります。
+
+```text
+~/Library/Application Support/Google/Chrome/Default/Local Storage/leveldb/
+```
+
+ただし、多くのブラウザではLevelDBなどの内部形式で保存されるため、JSONファイルとして直接読めるわけではありません。ブラウザ起動中にファイルを直接編集すると破損する可能性があるため、確認や変更は開発者ツールから行ってください。
+
+また、`localStorage` はorigin単位で分離されます。GitHub Pages上の本番URLと、ローカル開発用の `http://localhost:5173` や `http://127.0.0.1:5173` は別の保存領域になります。
+
 ## PNGコピーとダウンロード
 
 印影はSVGで描画し、出力時にCanvasへ変換して透過PNGを生成します。
