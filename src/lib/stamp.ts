@@ -39,6 +39,10 @@ export const COLOR_PRESETS = [
 ];
 
 const DEFAULT_COLOR = '#EF454A';
+const PNG_SIGNATURE = [137, 80, 78, 71, 13, 10, 26, 10];
+const PNG_DENSITY_UNIT_METER = 1;
+const INCHES_PER_METER = 39.37007874015748;
+const textEncoder = new TextEncoder();
 
 const pad2 = (value: number) => String(value).padStart(2, '0');
 const countChars = (value: string) => Array.from(value.trim()).length;
@@ -107,9 +111,9 @@ export const createStampSvg = (config: StampConfig, size = 512): string => {
   const topText = config.topText.trim() || '上段';
   const bottomText = config.bottomText.trim() || '名前';
   const dateText = formatDate(config, config.dateFormat);
-  const topFontSize = fitFont(topText, 72, 328, 32);
-  const bottomFontSize = fitFont(bottomText, 76, 342, 34);
-  const dateFontSize = fitFont(dateText, 62, 380, 36);
+  const topFontSize = fitFont(topText, 88, 360, 40);
+  const bottomFontSize = fitFont(bottomText, 92, 370, 42);
+  const dateFontSize = fitFont(dateText, 78, 420, 44);
   const topLetterSpacing = countChars(topText) > 5 ? 1 : 4;
   const bottomLetterSpacing = countChars(bottomText) > 5 ? 1 : 4;
 
@@ -139,7 +143,107 @@ export const createStampSvg = (config: StampConfig, size = 512): string => {
 </svg>`;
 };
 
-export const svgToPngBlob = async (svgMarkup: string, size = 1024): Promise<Blob> => {
+const createCrc32Table = () => {
+  const table = new Uint32Array(256);
+  for (let index = 0; index < table.length; index += 1) {
+    let value = index;
+    for (let bit = 0; bit < 8; bit += 1) {
+      value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
+    }
+    table[index] = value >>> 0;
+  }
+  return table;
+};
+
+const crc32Table = createCrc32Table();
+
+const crc32 = (bytes: Uint8Array): number => {
+  let crc = 0xffffffff;
+  for (const byte of bytes) {
+    crc = crc32Table[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+};
+
+const createPngChunk = (type: string, data: Uint8Array): Uint8Array => {
+  const typeBytes = textEncoder.encode(type);
+  const chunk = new Uint8Array(12 + data.length);
+  const view = new DataView(chunk.buffer);
+  const crcInput = new Uint8Array(typeBytes.length + data.length);
+
+  view.setUint32(0, data.length);
+  chunk.set(typeBytes, 4);
+  chunk.set(data, 8);
+
+  crcInput.set(typeBytes);
+  crcInput.set(data, typeBytes.length);
+  view.setUint32(8 + data.length, crc32(crcInput));
+
+  return chunk;
+};
+
+const createPngDensityChunk = (dpi: number): Uint8Array => {
+  const pixelsPerMeter = Math.round(dpi * INCHES_PER_METER);
+  const data = new Uint8Array(9);
+  const view = new DataView(data.buffer);
+
+  view.setUint32(0, pixelsPerMeter);
+  view.setUint32(4, pixelsPerMeter);
+  view.setUint8(8, PNG_DENSITY_UNIT_METER);
+
+  return createPngChunk('pHYs', data);
+};
+
+const hasPngSignature = (bytes: Uint8Array): boolean => {
+  return PNG_SIGNATURE.every((byte, index) => bytes[index] === byte);
+};
+
+const withPngDensity = async (blob: Blob, dpi?: number): Promise<Blob> => {
+  if (!dpi || dpi <= 0) return blob;
+
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  if (bytes.length < PNG_SIGNATURE.length || !hasPngSignature(bytes)) return blob;
+
+  const densityChunk = createPngDensityChunk(dpi);
+  const chunks: Uint8Array[] = [bytes.slice(0, PNG_SIGNATURE.length)];
+  let offset = PNG_SIGNATURE.length;
+  let inserted = false;
+
+  while (offset + 12 <= bytes.length) {
+    const view = new DataView(bytes.buffer, bytes.byteOffset + offset, bytes.byteLength - offset);
+    const dataLength = view.getUint32(0);
+    const chunkLength = 12 + dataLength;
+    const type = String.fromCharCode(bytes[offset + 4], bytes[offset + 5], bytes[offset + 6], bytes[offset + 7]);
+
+    if (offset + chunkLength > bytes.length) return blob;
+
+    if (type !== 'pHYs') {
+      chunks.push(bytes.slice(offset, offset + chunkLength));
+    }
+
+    offset += chunkLength;
+
+    if (type === 'IHDR' && !inserted) {
+      chunks.push(densityChunk);
+      inserted = true;
+    }
+  }
+
+  if (!inserted) return blob;
+
+  const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const output = new Uint8Array(totalLength);
+  let outputOffset = 0;
+
+  for (const chunk of chunks) {
+    output.set(chunk, outputOffset);
+    outputOffset += chunk.length;
+  }
+
+  return new Blob([output.buffer], { type: 'image/png' });
+};
+
+export const svgToPngBlob = async (svgMarkup: string, size = 1024, dpi?: number): Promise<Blob> => {
   const svgBlob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
   const url = URL.createObjectURL(svgBlob);
 
@@ -160,7 +264,7 @@ export const svgToPngBlob = async (svgMarkup: string, size = 1024): Promise<Blob
     context.clearRect(0, 0, size, size);
     context.drawImage(image, 0, 0, size, size);
 
-    return await new Promise<Blob>((resolve, reject) => {
+    const pngBlob = await new Promise<Blob>((resolve, reject) => {
       canvas.toBlob((blob) => {
         if (!blob) {
           reject(new Error('PNG生成に失敗しました'));
@@ -169,6 +273,8 @@ export const svgToPngBlob = async (svgMarkup: string, size = 1024): Promise<Blob
         resolve(blob);
       }, 'image/png');
     });
+
+    return withPngDensity(pngBlob, dpi);
   } finally {
     URL.revokeObjectURL(url);
   }
