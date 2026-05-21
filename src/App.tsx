@@ -18,11 +18,12 @@ import {
 import { createFavorite, loadFavorites, saveFavorites, type FavoriteStamp } from './lib/storage';
 import './styles.css';
 
-const EXPORT_SIZE = 1024;
+const DOWNLOAD_SIZE = 1024;
+const CLIPBOARD_SIZE = 76;
 
 const createInitialStamp = (): StampConfig => ({
-  topText: '福',
-  bottomText: '原',
+  topText: '伊',
+  bottomText: '藤',
   color: '#EF454A',
   dateFormat: 'shortDot',
   ...getTodayParts(),
@@ -139,15 +140,15 @@ function App() {
     setStatus('お気に入りを削除しました');
   };
 
-  const createPngBlob = async () => {
-    const exportSvg = createStampSvg(stamp, EXPORT_SIZE);
-    return svgToPngBlob(exportSvg, EXPORT_SIZE);
+  const createPngBlob = async (size: number) => {
+    const exportSvg = createStampSvg(stamp, size);
+    return svgToPngBlob(exportSvg, size);
   };
 
   const downloadPng = async () => {
     setIsBusy(true);
     try {
-      const blob = await createPngBlob();
+      const blob = await createPngBlob(DOWNLOAD_SIZE);
       downloadBlob(blob, createStampFileName(stamp));
       setStatus('PNGをダウンロードしました');
     } catch (error) {
@@ -160,19 +161,19 @@ function App() {
   const copyPng = async () => {
     setIsBusy(true);
     try {
-      const blob = await createPngBlob();
+      const blob = await createPngBlob(CLIPBOARD_SIZE);
       if (!canCopyPngToClipboard()) {
         downloadBlob(blob, createStampFileName(stamp));
-        setStatus('このブラウザでは画像コピーに対応していないため、PNGをダウンロードしました');
+        setStatus('このブラウザでは画像コピーに対応していないため、約2cmサイズのPNGをダウンロードしました');
         return;
       }
 
       try {
         await copyPngToClipboard(blob);
-        setStatus('透過PNGをクリップボードへコピーしました');
+        setStatus('約2cmサイズの透過PNGをクリップボードへコピーしました');
       } catch {
         downloadBlob(blob, createStampFileName(stamp));
-        setStatus('コピーに失敗したため、代替としてPNGをダウンロードしました');
+        setStatus('コピーに失敗したため、代替として約2cmサイズのPNGをダウンロードしました');
       }
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'PNGコピーに失敗しました');

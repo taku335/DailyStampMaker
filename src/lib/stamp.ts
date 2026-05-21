@@ -107,9 +107,9 @@ export const createStampSvg = (config: StampConfig, size = 512): string => {
   const topText = config.topText.trim() || '上段';
   const bottomText = config.bottomText.trim() || '名前';
   const dateText = formatDate(config, config.dateFormat);
-  const topFontSize = fitFont(topText, 58, 292, 27);
-  const bottomFontSize = fitFont(bottomText, 62, 308, 28);
-  const dateFontSize = fitFont(dateText, 50, 310, 29);
+  const topFontSize = fitFont(topText, 72, 328, 32);
+  const bottomFontSize = fitFont(bottomText, 76, 342, 34);
+  const dateFontSize = fitFont(dateText, 62, 380, 36);
   const topLetterSpacing = countChars(topText) > 5 ? 1 : 4;
   const bottomLetterSpacing = countChars(bottomText) > 5 ? 1 : 4;
 
