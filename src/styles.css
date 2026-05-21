@@ -186,6 +186,21 @@ h1 {
   font-size: 0.84rem;
 }
 
+.previewActions {
+  position: relative;
+  justify-content: center;
+  width: 100%;
+  margin-top: 12px;
+}
+
+.previewStatus {
+  position: relative;
+  width: 100%;
+  max-width: 360px;
+  margin: 10px 0 0;
+  text-align: center;
+}
+
 .workspace {
   display: grid;
   grid-template-columns: 1.08fr 0.92fr;
@@ -272,6 +287,11 @@ h1 {
   gap: 8px;
 }
 
+.colorPresetGrid {
+  align-items: center;
+  gap: 10px;
+}
+
 .colorButton,
 .ghostButton,
 .primaryButton,
@@ -287,6 +307,7 @@ h1 {
 }
 
 .colorButton:hover,
+.field input.customColorInput:hover,
 .ghostButton:hover,
 .primaryButton:hover,
 .secondaryButton:hover,
@@ -296,34 +317,56 @@ h1 {
 }
 
 .colorButton {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  min-height: 34px;
-  padding: 7px 10px;
+  display: grid;
+  place-items: center;
+}
+
+.colorButton,
+.field input.customColorInput {
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  flex: 0 0 44px;
   border: 1px solid rgba(72, 44, 24, 0.14);
+  border-radius: 14px;
+  padding: 5px;
   background: rgba(255, 255, 255, 0.66);
   color: var(--ink);
-  font-size: 0.84rem;
+}
+
+.field input.customColorInput {
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
 }
 
 .colorButton span {
-  width: 15px;
-  height: 15px;
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
   background: var(--stamp-color);
   box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.52);
 }
 
-.colorButton.active {
-  box-shadow: 0 0 0 4px rgba(179, 58, 47, 0.14);
-  outline: 2px solid rgba(34, 23, 17, 0.64);
+.field input.customColorInput::-webkit-color-swatch-wrapper {
+  padding: 0;
 }
 
-.colorPickerField input[type="color"] {
-  width: 100%;
-  height: 38px;
-  padding: 5px;
+.field input.customColorInput::-webkit-color-swatch {
+  border: 0;
+  border-radius: 50%;
+}
+
+.field input.customColorInput::-moz-color-swatch {
+  border: 0;
+  border-radius: 50%;
+}
+
+.colorButton.active,
+.field input.customColorInput.active {
+  box-shadow: 0 0 0 4px rgba(179, 58, 47, 0.14);
+  outline: 2px solid rgba(34, 23, 17, 0.64);
 }
 
 .primaryButton {
@@ -376,10 +419,6 @@ h1 {
 
 .emptyText {
   margin-bottom: 0;
-}
-
-.actionCard {
-  border-color: rgba(179, 58, 47, 0.22);
 }
 
 .status {
@@ -479,7 +518,6 @@ h1 {
     padding: 10px 13px;
   }
 
-  .colorButton,
   .ghostButton,
   .primaryButton,
   .secondaryButton,
@@ -487,15 +525,6 @@ h1 {
   .favoriteActions button {
     min-height: 44px;
     padding: 10px 16px;
-  }
-
-  .colorButton {
-    font-size: 0.92rem;
-  }
-
-  .colorButton span {
-    width: 18px;
-    height: 18px;
   }
 
   .favoriteList {

@@ -59,12 +59,35 @@ const applySavedProfile = (
   dateFormat: profile.dateFormat,
 });
 
-function StampPreview({ svgMarkup }: { svgMarkup: string }) {
+function StampPreview({
+  svgMarkup,
+  isBusy,
+  status,
+  onCopy,
+  onDownload,
+}: {
+  svgMarkup: string;
+  isBusy: boolean;
+  status: string;
+  onCopy: () => void;
+  onDownload: () => void;
+}) {
   return (
     <section className="previewPanel" aria-label="印影プレビュー">
       <div className="previewHalo" />
       <div className="stampSurface" dangerouslySetInnerHTML={{ __html: svgMarkup }} />
       <p className="previewHint">背景透過PNGとしてコピー・保存できます</p>
+      <div className="actionButtons previewActions">
+        <button className="primaryButton" type="button" disabled={isBusy} onClick={onCopy}>
+          クリップボードにコピー
+        </button>
+        <button className="secondaryButton" type="button" disabled={isBusy} onClick={onDownload}>
+          PNGダウンロード
+        </button>
+      </div>
+      <p className="status previewStatus" role="status">
+        {status}
+      </p>
     </section>
   );
 }
@@ -79,6 +102,8 @@ function App() {
 
   const svgMarkup = useMemo(() => createStampSvg(stamp), [stamp]);
   const dateValue = toDateInputValue(stamp);
+  const normalizedColor = stamp.color.toLowerCase();
+  const isCustomColorActive = !COLOR_PRESETS.some((preset) => preset.value.toLowerCase() === normalizedColor);
 
   useEffect(() => {
     let active = true;
@@ -191,7 +216,13 @@ function App() {
         <p className="lead">丸印の中に日付と上下テキストを入れた、背景透過の電子印影をブラウザだけで作成します。</p>
       </header>
 
-      <StampPreview svgMarkup={svgMarkup} />
+      <StampPreview
+        svgMarkup={svgMarkup}
+        isBusy={isBusy}
+        status={isBusy ? 'PNGを生成中です...' : status}
+        onCopy={copyPng}
+        onDownload={downloadPng}
+      />
 
       <section className="workspace" aria-label="印影設定">
         <div className="controlCard mainControls">
@@ -272,27 +303,29 @@ function App() {
           </label>
 
           <div className="field">
-            <span>色プリセット</span>
+            <span>印影色</span>
             <div className="colorPresetGrid">
               {COLOR_PRESETS.map((preset) => (
                 <button
                   key={preset.value}
                   type="button"
-                  className={stamp.color.toLowerCase() === preset.value.toLowerCase() ? 'colorButton active' : 'colorButton'}
+                  className={normalizedColor === preset.value.toLowerCase() ? 'colorButton active' : 'colorButton'}
                   style={{ '--stamp-color': preset.value } as CSSProperties}
+                  aria-label={preset.label}
                   onClick={() => updateStamp({ color: preset.value })}
                 >
                   <span />
-                  {preset.label}
                 </button>
               ))}
+              <input
+                className={isCustomColorActive ? 'customColorInput active' : 'customColorInput'}
+                type="color"
+                value={stamp.color}
+                aria-label="自由色"
+                onChange={(event) => updateStamp({ color: event.currentTarget.value })}
+              />
             </div>
           </div>
-
-          <label className="field colorPickerField">
-            <span>自由色選択</span>
-            <input type="color" value={stamp.color} onChange={(event) => updateStamp({ color: event.currentTarget.value })} />
-          </label>
         </div>
 
         <div className="controlCard">
@@ -329,25 +362,6 @@ function App() {
           </div>
         </div>
 
-        <div className="controlCard actionCard">
-          <div className="sectionTitle">
-            <span>04</span>
-            <h2>出力</h2>
-          </div>
-
-          <div className="actionButtons">
-            <button className="primaryButton" type="button" disabled={isBusy} onClick={copyPng}>
-              クリップボードにコピー
-            </button>
-            <button className="secondaryButton" type="button" disabled={isBusy} onClick={downloadPng}>
-              PNGダウンロード
-            </button>
-          </div>
-
-          <p className="status" role="status">
-            {isBusy ? 'PNGを生成中です...' : status}
-          </p>
-        </div>
       </section>
     </main>
   );

@@ -32,10 +32,7 @@ export const DATE_FORMAT_OPTIONS: Array<{ value: DateFormat; label: string }> = 
 
 export const COLOR_PRESETS = [
   { label: '赤', value: '#EF454A' },
-  { label: '青', value: '#2563EB' },
-  { label: '緑', value: '#12805C' },
   { label: '黒', value: '#202020' },
-  { label: '紫', value: '#7C3AED' },
 ];
 
 const DEFAULT_COLOR = '#EF454A';
