@@ -58,12 +58,12 @@ button:disabled {
 }
 
 .appShell {
-  width: min(1180px, calc(100% - 32px));
+  width: min(1220px, calc(100% - 32px));
   margin: 0 auto;
   min-height: 100svh;
   padding: 22px 0 24px;
   display: grid;
-  grid-template-columns: minmax(260px, 0.72fr) minmax(0, 1.28fr);
+  grid-template-columns: minmax(220px, 0.58fr) minmax(0, 1.42fr);
   grid-template-rows: auto minmax(0, 1fr);
   gap: 16px 18px;
   align-items: start;
@@ -72,9 +72,7 @@ button:disabled {
 .appHeader {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.9fr);
-  gap: 12px;
-  align-items: end;
+  gap: 6px;
   text-align: left;
 }
 
@@ -102,24 +100,10 @@ h1 {
   letter-spacing: 0;
 }
 
-.lead {
-  grid-column: 2;
-  grid-row: 1 / span 2;
-  align-self: center;
-  max-width: 720px;
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.96rem;
-}
-
 @media (max-width: 1080px) {
   .appShell {
-    width: min(100% - 24px, 980px);
-    grid-template-columns: minmax(230px, 0.65fr) minmax(0, 1.35fr);
-  }
-
-  .appHeader {
-    grid-template-columns: minmax(0, 1fr) minmax(280px, 0.92fr);
+    width: min(100% - 24px, 1020px);
+    grid-template-columns: minmax(210px, 0.56fr) minmax(0, 1.44fr);
   }
 
   h1 {
@@ -127,11 +111,11 @@ h1 {
   }
 
   .workspace {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 0.88fr) minmax(0, 1.12fr);
   }
 
   .stampSurface {
-    width: min(28vw, 250px);
+    width: min(24vw, 232px);
   }
 }
 
@@ -163,7 +147,7 @@ h1 {
   position: relative;
   display: grid;
   place-items: center;
-  width: min(28vw, 282px);
+  width: min(24vw, 258px);
   aspect-ratio: 1;
   padding: 12px;
   border-radius: 50%;
@@ -179,18 +163,28 @@ h1 {
   filter: drop-shadow(0 6px 13px rgba(100, 42, 28, 0.14));
 }
 
-.previewHint {
-  position: relative;
-  margin: 8px 0 0;
-  color: var(--muted);
-  font-size: 0.84rem;
-}
-
 .previewActions {
   position: relative;
   justify-content: center;
   width: 100%;
   margin-top: 12px;
+}
+
+.actionTooltip {
+  position: absolute;
+  top: -34px;
+  left: 50%;
+  z-index: 1;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(34, 23, 17, 0.9);
+  color: #fffaf0;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.76rem;
+  font-weight: 800;
+  line-height: 1.2;
+  pointer-events: none;
+  transform: translateX(-50%);
 }
 
 .previewStatus {
@@ -203,7 +197,7 @@ h1 {
 
 .workspace {
   display: grid;
-  grid-template-columns: 1.08fr 0.92fr;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
   gap: 12px;
   align-items: start;
 }
@@ -248,16 +242,29 @@ h1 {
 .formGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  column-gap: 10px;
+  row-gap: 12px;
 }
 
 .field {
   display: grid;
   gap: 6px;
-  margin-bottom: 10px;
+  margin: 0;
   color: var(--muted);
   font-size: 0.84rem;
   font-weight: 700;
+}
+
+.dateControls {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(138px, 0.9fr) minmax(0, 1.1fr);
+  column-gap: 10px;
+  row-gap: 12px;
+}
+
+.colorField {
+  grid-column: 1 / -1;
 }
 
 .field input,
@@ -281,23 +288,26 @@ h1 {
 
 .colorPresetGrid,
 .actionButtons,
-.favoriteActions {
+.historyActions {
   display: flex;
-  flex-wrap: wrap;
   gap: 8px;
+}
+
+.actionButtons {
+  flex-wrap: wrap;
 }
 
 .colorPresetGrid {
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .colorButton,
 .ghostButton,
 .primaryButton,
 .secondaryButton,
-.dangerButton,
-.favoriteActions button {
+.dangerButton {
   min-height: 38px;
   border: 0;
   border-radius: 999px;
@@ -312,7 +322,8 @@ h1 {
 .primaryButton:hover,
 .secondaryButton:hover,
 .dangerButton:hover,
-.favoriteActions button:hover {
+.historySummaryButton:hover,
+.iconButton:hover {
   transform: translateY(-1px);
 }
 
@@ -376,8 +387,7 @@ h1 {
 }
 
 .secondaryButton,
-.ghostButton,
-.favoriteActions button {
+.ghostButton {
   background: rgba(34, 23, 17, 0.08);
   color: var(--ink);
 }
@@ -387,31 +397,116 @@ h1 {
   color: #8e271f !important;
 }
 
-.favoriteList {
+.historyCard {
+  grid-column: 2;
+}
+
+.historyList {
   display: grid;
-  gap: 8px;
-  max-height: 112px;
+  gap: 6px;
+  max-height: 342px;
   overflow: auto;
   padding-right: 2px;
 }
 
-.favoriteItem {
-  display: flex;
-  gap: 10px;
+.historyItem {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
   align-items: center;
-  justify-content: space-between;
-  padding: 9px;
+  min-width: 0;
+  padding: 6px 8px;
   border: 1px solid rgba(72, 44, 24, 0.12);
-  border-radius: 14px;
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.46);
 }
 
-.favoriteItem strong,
-.favoriteItem small {
-  display: block;
+.historyItem.pinned {
+  border-color: rgba(179, 58, 47, 0.32);
 }
 
-.favoriteItem small,
+.historySummaryButton {
+  display: flex;
+  min-width: 0;
+  gap: 8px;
+  align-items: center;
+  overflow: hidden;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  white-space: nowrap;
+  transition: transform 160ms ease;
+}
+
+.historyColor {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  border: 2px solid rgba(255, 255, 255, 0.72);
+  border-radius: 50%;
+  background: var(--stamp-color);
+  box-shadow: 0 0 0 1px rgba(72, 44, 24, 0.16);
+}
+
+.historySummaryButton strong {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.historyActions {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.iconButton {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  min-height: 24px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  line-height: 0;
+  transition: transform 160ms ease, color 160ms ease;
+}
+
+.starButton {
+  color: rgba(34, 23, 17, 0.42);
+}
+
+.iconButton svg {
+  width: 18px;
+  height: 18px;
+  fill: transparent;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.starButton.active {
+  color: #d99a18;
+}
+
+.starButton.active svg {
+  fill: currentColor;
+}
+
+.trashButton {
+  color: #8e271f;
+}
+
 .emptyText,
 .status {
   color: var(--muted);
@@ -443,19 +538,13 @@ h1 {
   }
 
   .eyebrow,
-  h1,
-  .lead {
+  h1 {
     grid-column: auto;
     grid-row: auto;
   }
 
   h1 {
     font-size: 2.4rem;
-  }
-
-  .lead {
-    margin: 0 auto;
-    font-size: 1rem;
   }
 
   .previewPanel {
@@ -473,13 +562,14 @@ h1 {
     padding: 14px;
   }
 
-  .previewHint {
-    font-size: 0.92rem;
-  }
-
   .workspace,
   .formGrid {
     grid-template-columns: 1fr;
+  }
+
+  .dateControls {
+    grid-template-columns: 1fr;
+    row-gap: 12px;
   }
 
   .mainControls {
@@ -507,7 +597,7 @@ h1 {
 
   .field {
     gap: 8px;
-    margin-bottom: 14px;
+    margin: 0;
     font-size: 0.92rem;
   }
 
@@ -521,25 +611,38 @@ h1 {
   .ghostButton,
   .primaryButton,
   .secondaryButton,
-  .dangerButton,
-  .favoriteActions button {
+  .dangerButton {
     min-height: 44px;
     padding: 10px 16px;
   }
 
-  .favoriteList {
+  .historyCard {
+    grid-column: auto;
+  }
+
+  .historyList {
     max-height: 320px;
   }
 
-  .favoriteItem {
-    align-items: stretch;
-    flex-direction: column;
-    padding: 12px;
-    border-radius: 18px;
+  .historyItem {
+    align-items: center;
+    padding: 8px 10px;
+    border-radius: 12px;
   }
 
-  .favoriteActions button,
   .actionButtons button {
     flex: 1 1 150px;
+  }
+
+  .iconButton {
+    width: 28px;
+    height: 28px;
+    min-height: 28px;
+    padding: 0;
+  }
+
+  .iconButton svg {
+    width: 22px;
+    height: 22px;
   }
 }

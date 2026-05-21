@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
   COLOR_PRESETS,
   DATE_FORMAT_OPTIONS,
@@ -13,9 +13,16 @@ import {
   toDateInputValue,
   type DateFormat,
   type StampConfig,
-  type StampPreset,
 } from './lib/stamp';
-import { createFavorite, loadFavorites, saveFavorites, type FavoriteStamp } from './lib/storage';
+import {
+  getHistoryLabel,
+  loadHistory,
+  recordHistory,
+  removeHistoryEntry,
+  saveHistory,
+  toggleHistoryPin,
+  type StampHistoryEntry,
+} from './lib/storage';
 import './styles.css';
 
 const DOWNLOAD_SIZE = 1024;
@@ -30,45 +37,25 @@ const createInitialStamp = (): StampConfig => ({
   ...getTodayParts(),
 });
 
-const isDateFormat = (value: unknown): value is DateFormat => {
-  return DATE_FORMAT_OPTIONS.some((option) => option.value === value);
-};
-
-const isStampPreset = (value: unknown): value is StampPreset => {
-  if (typeof value !== 'object' || value === null) return false;
-  const item = value as Record<string, unknown>;
-  return (
-    typeof item.id === 'string' &&
-    typeof item.label === 'string' &&
-    typeof item.topText === 'string' &&
-    typeof item.bottomText === 'string' &&
-    typeof item.color === 'string' &&
-    isDateFormat(item.dateFormat)
-  );
-};
-
-const applySavedProfile = (
-  current: StampConfig,
-  profile: Pick<StampPreset, 'topText' | 'bottomText' | 'color' | 'dateFormat'>,
-): StampConfig => ({
+const applyHistoryEntry = (current: StampConfig, entry: StampHistoryEntry): StampConfig => ({
   ...current,
-  ...getTodayParts(),
-  topText: profile.topText,
-  bottomText: profile.bottomText,
-  color: profile.color,
-  dateFormat: profile.dateFormat,
+  topText: entry.topText,
+  bottomText: entry.bottomText,
+  color: entry.color,
 });
 
 function StampPreview({
   svgMarkup,
   isBusy,
   status,
+  tooltipText,
   onCopy,
   onDownload,
 }: {
   svgMarkup: string;
   isBusy: boolean;
   status: string;
+  tooltipText: string;
   onCopy: () => void;
   onDownload: () => void;
 }) {
@@ -76,7 +63,6 @@ function StampPreview({
     <section className="previewPanel" aria-label="印影プレビュー">
       <div className="previewHalo" />
       <div className="stampSurface" dangerouslySetInnerHTML={{ __html: svgMarkup }} />
-      <p className="previewHint">背景透過PNGとしてコピー・保存できます</p>
       <div className="actionButtons previewActions">
         <button className="primaryButton" type="button" disabled={isBusy} onClick={onCopy}>
           クリップボードにコピー
@@ -84,86 +70,85 @@ function StampPreview({
         <button className="secondaryButton" type="button" disabled={isBusy} onClick={onDownload}>
           PNGダウンロード
         </button>
+        {tooltipText && <span className="actionTooltip">{tooltipText}</span>}
       </div>
-      <p className="status previewStatus" role="status">
-        {status}
-      </p>
+      {status && (
+        <p className="status previewStatus" role="status">
+          {status}
+        </p>
+      )}
     </section>
   );
 }
 
 function App() {
   const [stamp, setStamp] = useState<StampConfig>(createInitialStamp);
-  const [presets, setPresets] = useState<StampPreset[]>([]);
-  const [favorites, setFavorites] = useState<FavoriteStamp[]>(loadFavorites);
-  const [selectedPresetId, setSelectedPresetId] = useState('');
-  const [status, setStatus] = useState('印影を調整してください');
+  const [history, setHistory] = useState<StampHistoryEntry[]>(loadHistory);
+  const [status, setStatus] = useState('');
   const [isBusy, setIsBusy] = useState(false);
+  const [tooltipText, setTooltipText] = useState('');
+  const tooltipTimerRef = useRef<number | null>(null);
 
   const svgMarkup = useMemo(() => createStampSvg(stamp), [stamp]);
   const dateValue = toDateInputValue(stamp);
   const normalizedColor = stamp.color.toLowerCase();
   const isCustomColorActive = !COLOR_PRESETS.some((preset) => preset.value.toLowerCase() === normalizedColor);
 
-  useEffect(() => {
-    let active = true;
-
-    fetch(`${import.meta.env.BASE_URL}presets.json`, { cache: 'no-cache' })
-      .then((response) => {
-        if (!response.ok) throw new Error('プリセットJSONを読み込めませんでした');
-        return response.json() as Promise<unknown>;
-      })
-      .then((data) => {
-        if (!active) return;
-        setPresets(Array.isArray(data) ? data.filter(isStampPreset) : []);
-      })
-      .catch(() => {
-        if (!active) return;
-        setStatus('プリセットJSONを読み込めませんでした。手入力は利用できます。');
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
   const updateStamp = (patch: Partial<StampConfig>) => {
     setStamp((current) => ({ ...current, ...patch }));
   };
 
-  const setToday = () => {
-    updateStamp(getTodayParts());
-    setStatus('日付を今日に更新しました');
+  const recordCurrentHistory = () => {
+    setHistory((current) => {
+      const nextHistory = recordHistory(current, stamp);
+      saveHistory(nextHistory);
+      return nextHistory;
+    });
   };
 
-  const handlePresetChange = (presetId: string) => {
-    setSelectedPresetId(presetId);
-    const preset = presets.find((item) => item.id === presetId);
-    if (!preset) return;
-
-    setStamp((current) => applySavedProfile(current, preset));
-    setStatus(`${preset.label} のプリセットを反映しました`);
+  const clearTooltip = () => {
+    if (tooltipTimerRef.current !== null) {
+      window.clearTimeout(tooltipTimerRef.current);
+      tooltipTimerRef.current = null;
+    }
+    setTooltipText('');
   };
 
-  const addFavorite = () => {
-    const favorite = createFavorite(stamp);
-    const nextFavorites = [favorite, ...favorites].slice(0, 30);
-    setFavorites(nextFavorites);
-    saveFavorites(nextFavorites);
-    setStatus(`${favorite.label} をお気に入りに保存しました`);
+  const showTooltip = (text: string, duration = 1400) => {
+    if (tooltipTimerRef.current !== null) {
+      window.clearTimeout(tooltipTimerRef.current);
+      tooltipTimerRef.current = null;
+    }
+
+    setTooltipText(text);
+    if (duration > 0) {
+      tooltipTimerRef.current = window.setTimeout(() => {
+        setTooltipText('');
+        tooltipTimerRef.current = null;
+      }, duration);
+    }
   };
 
-  const applyFavorite = (favorite: FavoriteStamp) => {
-    setSelectedPresetId('');
-    setStamp((current) => applySavedProfile(current, favorite));
-    setStatus(`${favorite.label} を反映しました。日付は今日に更新済みです`);
+  const applyHistory = (entry: StampHistoryEntry) => {
+    setStamp((current) => applyHistoryEntry(current, entry));
+    setStatus(`${getHistoryLabel(entry)} を履歴から反映しました`);
   };
 
-  const removeFavorite = (favoriteId: string) => {
-    const nextFavorites = favorites.filter((favorite) => favorite.id !== favoriteId);
-    setFavorites(nextFavorites);
-    saveFavorites(nextFavorites);
-    setStatus('お気に入りを削除しました');
+  const togglePinned = (historyId: string) => {
+    setHistory((current) => {
+      const nextHistory = toggleHistoryPin(current, historyId);
+      saveHistory(nextHistory);
+      return nextHistory;
+    });
+  };
+
+  const removeHistory = (historyId: string) => {
+    setHistory((current) => {
+      const nextHistory = removeHistoryEntry(current, historyId);
+      saveHistory(nextHistory);
+      return nextHistory;
+    });
+    setStatus('履歴を削除しました');
   };
 
   const createPngBlob = async (size: number, dpi?: number) => {
@@ -173,11 +158,15 @@ function App() {
 
   const downloadPng = async () => {
     setIsBusy(true);
+    setStatus('');
+    showTooltip('generating', 0);
     try {
       const blob = await createPngBlob(DOWNLOAD_SIZE);
       downloadBlob(blob, createStampFileName(stamp));
-      setStatus('PNGをダウンロードしました');
+      recordCurrentHistory();
+      showTooltip('downloaded');
     } catch (error) {
+      clearTooltip();
       setStatus(error instanceof Error ? error.message : 'PNGダウンロードに失敗しました');
     } finally {
       setIsBusy(false);
@@ -186,22 +175,31 @@ function App() {
 
   const copyPng = async () => {
     setIsBusy(true);
+    setStatus('');
+    showTooltip('generating', 0);
     try {
       const blob = await createPngBlob(CLIPBOARD_PIXEL_SIZE, CLIPBOARD_DPI);
       if (!canCopyPngToClipboard()) {
         downloadBlob(blob, createStampFileName(stamp));
+        recordCurrentHistory();
+        clearTooltip();
         setStatus('このブラウザでは画像コピーに対応していないため、約2.4cmサイズのPNGをダウンロードしました');
         return;
       }
 
       try {
         await copyPngToClipboard(blob);
-        setStatus('約2.4cmサイズの透過PNGをクリップボードへコピーしました');
+        recordCurrentHistory();
+        setStatus('');
+        showTooltip('copied');
       } catch {
         downloadBlob(blob, createStampFileName(stamp));
+        recordCurrentHistory();
+        clearTooltip();
         setStatus('コピーに失敗したため、代替として約2.4cmサイズのPNGをダウンロードしました');
       }
     } catch (error) {
+      clearTooltip();
       setStatus(error instanceof Error ? error.message : 'PNGコピーに失敗しました');
     } finally {
       setIsBusy(false);
@@ -213,13 +211,13 @@ function App() {
       <header className="appHeader">
         <p className="eyebrow">Daily Stamp Maker</p>
         <h1>日付入り名前印ジェネレーター</h1>
-        <p className="lead">丸印の中に日付と上下テキストを入れた、背景透過の電子印影をブラウザだけで作成します。</p>
       </header>
 
       <StampPreview
         svgMarkup={svgMarkup}
         isBusy={isBusy}
-        status={isBusy ? 'PNGを生成中です...' : status}
+        status={status}
+        tooltipText={tooltipText}
         onCopy={copyPng}
         onDownload={downloadPng}
       />
@@ -252,108 +250,106 @@ function App() {
               />
             </label>
 
-            <label className="field">
-              <span>日付</span>
-              <input
-                type="date"
-                value={dateValue}
-                onChange={(event) => {
-                  const nextDate = parseDateInputValue(event.currentTarget.value);
-                  if (nextDate) updateStamp(nextDate);
-                }}
-              />
-            </label>
+            <div className="dateControls">
+              <label className="field">
+                <span>日付</span>
+                <input
+                  type="date"
+                  value={dateValue}
+                  onChange={(event) => {
+                    const nextDate = parseDateInputValue(event.currentTarget.value);
+                    if (nextDate) updateStamp(nextDate);
+                  }}
+                />
+              </label>
 
-            <label className="field">
-              <span>日付フォーマット</span>
-              <select
-                value={stamp.dateFormat}
-                onChange={(event) => updateStamp({ dateFormat: event.currentTarget.value as DateFormat })}
-              >
-                {DATE_FORMAT_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <button className="ghostButton" type="button" onClick={setToday}>
-            今日の日付にする
-          </button>
-        </div>
-
-        <div className="controlCard">
-          <div className="sectionTitle">
-            <span>02</span>
-            <h2>色とプリセット</h2>
-          </div>
-
-          <label className="field">
-            <span>プリセット選択</span>
-            <select value={selectedPresetId} onChange={(event) => handlePresetChange(event.currentTarget.value)}>
-              <option value="">プリセットを選択</option>
-              {presets.map((preset) => (
-                <option key={preset.id} value={preset.id}>
-                  {preset.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <div className="field">
-            <span>印影色</span>
-            <div className="colorPresetGrid">
-              {COLOR_PRESETS.map((preset) => (
-                <button
-                  key={preset.value}
-                  type="button"
-                  className={normalizedColor === preset.value.toLowerCase() ? 'colorButton active' : 'colorButton'}
-                  style={{ '--stamp-color': preset.value } as CSSProperties}
-                  aria-label={preset.label}
-                  onClick={() => updateStamp({ color: preset.value })}
+              <label className="field">
+                <span>日付フォーマット</span>
+                <select
+                  value={stamp.dateFormat}
+                  onChange={(event) => updateStamp({ dateFormat: event.currentTarget.value as DateFormat })}
                 >
-                  <span />
-                </button>
-              ))}
-              <input
-                className={isCustomColorActive ? 'customColorInput active' : 'customColorInput'}
-                type="color"
-                value={stamp.color}
-                aria-label="自由色"
-                onChange={(event) => updateStamp({ color: event.currentTarget.value })}
-              />
+                  {DATE_FORMAT_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div className="field colorField">
+              <span>印影色</span>
+              <div className="colorPresetGrid">
+                {COLOR_PRESETS.map((preset) => (
+                  <button
+                    key={preset.value}
+                    type="button"
+                    className={normalizedColor === preset.value.toLowerCase() ? 'colorButton active' : 'colorButton'}
+                    style={{ '--stamp-color': preset.value } as CSSProperties}
+                    aria-label={preset.label}
+                    onClick={() => updateStamp({ color: preset.value })}
+                  >
+                    <span />
+                  </button>
+                ))}
+                <input
+                  className={isCustomColorActive ? 'customColorInput active' : 'customColorInput'}
+                  type="color"
+                  value={stamp.color}
+                  aria-label="自由色"
+                  onChange={(event) => updateStamp({ color: event.currentTarget.value })}
+                />
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="controlCard">
+        <div className="controlCard historyCard">
           <div className="sectionTitle">
-            <span>03</span>
-            <h2>お気に入り</h2>
+            <span>02</span>
+            <h2>履歴</h2>
           </div>
 
-          <button className="primaryButton" type="button" onClick={addFavorite}>
-            現在の設定をお気に入り登録
-          </button>
-
-          <div className="favoriteList" aria-label="お気に入り一覧">
-            {favorites.length === 0 ? (
-              <p className="emptyText">まだお気に入りはありません。</p>
+          <div className="historyList" aria-label="履歴一覧">
+            {history.length === 0 ? (
+              <p className="emptyText">履歴はまだありません。</p>
             ) : (
-              favorites.map((favorite) => (
-                <article key={favorite.id} className="favoriteItem">
-                  <div>
-                    <strong>{favorite.label}</strong>
-                    <small>{DATE_FORMAT_OPTIONS.find((option) => option.value === favorite.dateFormat)?.label}</small>
-                  </div>
-                  <div className="favoriteActions">
-                    <button type="button" onClick={() => applyFavorite(favorite)}>
-                      選択
+              history.map((entry) => (
+                <article key={entry.id} className={entry.pinned ? 'historyItem pinned' : 'historyItem'}>
+                  <button
+                    className="historySummaryButton"
+                    type="button"
+                    aria-label={`${getHistoryLabel(entry)} を選択`}
+                    onClick={() => applyHistory(entry)}
+                  >
+                    <span className="historyColor" style={{ '--stamp-color': entry.color } as CSSProperties} />
+                    <strong>{getHistoryLabel(entry)}</strong>
+                  </button>
+                  <div className="historyActions">
+                    <button
+                      type="button"
+                      className={entry.pinned ? 'iconButton starButton active' : 'iconButton starButton'}
+                      aria-label={entry.pinned ? '星を外す' : '星を付ける'}
+                      onClick={() => togglePinned(entry.id)}
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path d="M12 3.2l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.5 6.8 19.2l1-5.8-4.2-4.1 5.8-.8L12 3.2z" />
+                      </svg>
                     </button>
-                    <button type="button" className="dangerButton" onClick={() => removeFavorite(favorite.id)}>
-                      削除
+                    <button
+                      type="button"
+                      className="iconButton trashButton"
+                      aria-label="履歴を削除"
+                      onClick={() => removeHistory(entry.id)}
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path d="M3 6h18" />
+                        <path d="M8 6V4h8v2" />
+                        <path d="M6.5 6l1 14h9l1-14" />
+                        <path d="M10 10v6" />
+                        <path d="M14 10v6" />
+                      </svg>
                     </button>
                   </div>
                 </article>
