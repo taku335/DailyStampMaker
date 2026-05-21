@@ -13,15 +13,6 @@ export type StampConfig = DateParts & {
   dateFormat: DateFormat;
 };
 
-export type StampPreset = {
-  id: string;
-  label: string;
-  topText: string;
-  bottomText: string;
-  color: string;
-  dateFormat: DateFormat;
-};
-
 export const DATE_FORMAT_OPTIONS: Array<{ value: DateFormat; label: string }> = [
   { value: 'slash', label: 'YYYY/MM/DD' },
   { value: 'dot', label: 'YYYY.MM.DD' },
