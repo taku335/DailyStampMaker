@@ -19,7 +19,7 @@ build:
 	docker compose run --rm app npm run build
 
 preview:
-	docker compose run --rm --service-ports app npm run preview -- --host 0.0.0.0
+	docker compose run --rm --service-ports app npm run preview -- --host 0.0.0.0 --port 5173
 
 shell:
 	docker compose run --rm app sh

@@ -27,6 +27,11 @@ export const COLOR_PRESETS = [
 ];
 
 const DEFAULT_COLOR = '#EF454A';
+const DATE_BASE_FONT_SIZE = 72;
+const DATE_MIN_FONT_SIZE = 44;
+const DATE_MAX_WIDTH = 355;
+const DATE_LETTER_SPACING = 1;
+const DATE_NARROW_CHARACTER_WIDTH = 0.62;
 const PNG_SIGNATURE = [137, 80, 78, 71, 13, 10, 26, 10];
 const PNG_DENSITY_UNIT_METER = 1;
 const INCHES_PER_METER = 39.37007874015748;
@@ -94,6 +99,17 @@ const fitFont = (text: string, baseSize: number, maxWidth: number, minimumSize: 
   return Math.max(minimumSize, Math.floor(maxWidth / (length * 0.92)));
 };
 
+const fitDateFont = (text: string): number => {
+  const characters = Array.from(text.trim());
+  const widthUnits = characters.reduce((total, character) => {
+    return total + (character === '年' || character === '月' || character === '日' ? 1 : DATE_NARROW_CHARACTER_WIDTH);
+  }, 0);
+  const spacingWidth = Math.max(characters.length - 1, 0) * DATE_LETTER_SPACING;
+  const fittedSize = Math.floor((DATE_MAX_WIDTH - spacingWidth) / Math.max(widthUnits, 1));
+
+  return Math.max(DATE_MIN_FONT_SIZE, Math.min(DATE_BASE_FONT_SIZE, fittedSize));
+};
+
 export const createStampSvg = (config: StampConfig, size = 512): string => {
   const color = normalizeColor(config.color);
   const topText = config.topText.trim() || '上段';
@@ -101,7 +117,7 @@ export const createStampSvg = (config: StampConfig, size = 512): string => {
   const dateText = formatDate(config, config.dateFormat);
   const topFontSize = fitFont(topText, 88, 360, 40);
   const bottomFontSize = fitFont(bottomText, 92, 370, 42);
-  const dateFontSize = fitFont(dateText, 78, 420, 44);
+  const dateFontSize = fitDateFont(dateText);
   const topLetterSpacing = countChars(topText) > 5 ? 1 : 4;
   const bottomLetterSpacing = countChars(bottomText) > 5 ? 1 : 4;
 
@@ -125,7 +141,7 @@ export const createStampSvg = (config: StampConfig, size = 512): string => {
   </g>
   <g filter="url(#stamp-rough)" fill="${color}">
     <text class="stampText" x="256" y="143" font-size="${topFontSize}" letter-spacing="${topLetterSpacing}">${escapeXml(topText)}</text>
-    <text class="stampText" x="256" y="259" font-size="${dateFontSize}" letter-spacing="1">${escapeXml(dateText)}</text>
+    <text class="stampText" x="256" y="259" font-size="${dateFontSize}" letter-spacing="${DATE_LETTER_SPACING}">${escapeXml(dateText)}</text>
     <text class="stampText" x="256" y="384" font-size="${bottomFontSize}" letter-spacing="${bottomLetterSpacing}">${escapeXml(bottomText)}</text>
   </g>
 </svg>`;
